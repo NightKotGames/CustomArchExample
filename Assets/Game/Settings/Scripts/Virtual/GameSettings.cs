@@ -1,6 +1,15 @@
-﻿namespace Game.Settings
+﻿
+using UnityEngine;
+using Game.Settings.Maps;
+using Game.Settings.Entities;
+
+namespace Game.Settings
 {
-    public class GameSettings
+    [CreateAssetMenu(fileName = "GameSettings", menuName = "GameSettings/NewGameSettings")]
+
+    public class GameSettings : ScriptableObject
     {
+        public EntitiesSettings SettingsMobs;
+        public MapsSettings SettingsMaps;
     }
 }

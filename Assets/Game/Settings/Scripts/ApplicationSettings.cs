@@ -1,6 +1,14 @@
-﻿namespace Game.Settings
+﻿
+using UnityEngine;
+
+namespace Game.Settings
 {
-    public class ApplicationSettings
+    [CreateAssetMenu(fileName = "ApplicationSettings", menuName = "ApplicationSettings/NewApplicationSettings")]
+
+    public class ApplicationSettings : ScriptableObject
     {
+        public int MisicVolume;
+        public int SFXVolume;
+        public string Difficulty;
     }
 }

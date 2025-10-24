@@ -7,19 +7,22 @@ using Game.LoaderScene;
 
 namespace Game.Boot
 {
-    public class BootInstaller : MonoInstaller
+    public class GlobalInstaller : MonoInstaller
     {
         public override void InstallBindings()
         {
+            // === Загрузчик Сцен ===
+            Container.Bind<ISceneLoader>()
+            .To<SceneLoader>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+
             // === Глобальные сервисы ===
             Container.Bind<ISettingsProvider>()
                 .To<JsonSettingsProvider>()
                 .AsSingle();
 
-            // === Загрузчик Сцен ===
-            Container.Bind<ISceneLoader>()
-                .To<SceneLoader>()
-                .AsSingle();
 
             //Container.Bind<IGameStateProvider>()
             //    .To<JsonGameStateProvider>()

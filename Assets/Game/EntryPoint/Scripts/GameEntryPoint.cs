@@ -1,5 +1,7 @@
 
 using UnityEngine;
+using Game.LoaderScene;
+using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
 namespace Game.EntryPoint
@@ -18,8 +20,9 @@ namespace Game.EntryPoint
             var activeScene = SceneManager.GetActiveScene();
             if (activeScene.name != Scenes.BOOT)
             {
-                Debug.LogWarning($"Game started from scene '{activeScene.name}'. Переключаемся на Boot...");
-                SceneManager.LoadScene("Boot");
+                Debug.LogWarning($"Game started from scene '{activeScene.name}'. Switching to Boot...");
+                var loader = new SceneLoader(); // или получить через Zenject
+                loader.LoadSceneAsync(Scenes.BOOT).Forget();
             }
         }
     }

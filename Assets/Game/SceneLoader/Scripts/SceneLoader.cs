@@ -1,11 +1,12 @@
 ﻿
+using Zenject;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
 using UnityEngine.SceneManagement;
 
 namespace Game.LoaderScene
 {
-    public class SceneLoader : ISceneLoader
+    public class SceneLoader : MonoInstaller, ISceneLoader
     {
         public async UniTask LoadSceneAsync(string sceneName)
         {
