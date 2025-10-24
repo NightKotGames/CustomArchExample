@@ -12,6 +12,13 @@ namespace Game.EntryPoint
         public static void AutoStartGame()
         {
             Application.targetFrameRate = 60;
+
+#if !UNITY_EDITOR && UNITY_ANDROID || UNITY_IOS  
+
+            // Отключаем сон экрана на  Мобильных устройствах
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
+#endif
             Application.runInBackground = true;
 
             Debug.Log("=== GameEntryPoint started ===");

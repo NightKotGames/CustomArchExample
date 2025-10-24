@@ -1,9 +1,9 @@
 ﻿
+using System;
 using Zenject;
-//using Game.UI;
-//using Game.State;
-using Game.Settings;
-using Game.LoaderScene;
+using System.Linq;
+using Game.Services;
+using System.Reflection;
 
 namespace Game.Boot
 {
@@ -11,33 +11,35 @@ namespace Game.Boot
     {
         public override void InstallBindings()
         {
-            // === Загрузчик Сцен ===
-            Container.Bind<ISceneLoader>()
-            .To<SceneLoader>()
-            .FromNewComponentOnNewGameObject()
-            .AsSingle()
-            .NonLazy();
+            // Берём все типы из текущей сборки (можно расширить на другие)
+            var assembly = Assembly.GetExecutingAssembly();
 
-            // === Глобальные сервисы ===
-            Container.Bind<ISettingsProvider>()
-                .To<JsonSettingsProvider>()
-                .AsSingle();
+            var serviceTypes = assembly.GetTypes()
+                .Where(t => !t.IsAbstract && !t.IsInterface)
+                .Select(t => new
+                {
+                    Impl = t,
+                    ServiceInterface = t.GetInterfaces()
+                        .FirstOrDefault(i => i.IsGenericType &&
+                                             i.GetGenericTypeDefinition() == typeof(IService<>))
+                })
+                .Where(x => x.ServiceInterface != null);
 
+            foreach (var s in serviceTypes)
+            {
+                // Достаём реальный контракт (например, ISceneLoader)
+                var iface = s.ServiceInterface.GetGenericArguments()[0];
 
-            //Container.Bind<IGameStateProvider>()
-            //    .To<JsonGameStateProvider>()
-            //    .AsSingle();
+                // Жёсткая проверка: контракт должен быть интерфейсом
+                if (!iface.IsInterface)
+                {
+                    throw new Exception(
+                        $"Ошибка регистрации: {s.Impl.Name} указывает {iface.Name}, но это не интерфейс!");
+                }
 
-            //// === UI Root ===
-            //Container.Bind<UIRootView>()
-            //    .FromComponentInNewPrefabResource("UIRoot")
-            //    .AsSingle()
-            //    .NonLazy();
-
-            //// === Главный сценарий Boot ===
-            //Container.Bind<BootEntry>()
-            //    .AsSingle()
-            //    .NonLazy();
+                // Регистрируем: ISceneLoader -> SceneLoader
+                Container.Bind(iface).To(s.Impl).AsSingle().NonLazy();
+            }
         }
     }
 }
