@@ -3,10 +3,10 @@ using UnityEngine;
 
 namespace Game.EntryPoint.UIRoot
 {
-    public interface IUIRootService
+    public interface IIURootViewService
     {
-        void LoadingRootScreen(GameObject rootScreen);
-        void SetRootScreen(bool enable);
+        void LoadingRootScreen(Sprite rootScreen);
+        void SetActiveRootScreen(bool enable);
         void AttachSceneUI(GameObject ui);
         void ClearSceneUI();
     }

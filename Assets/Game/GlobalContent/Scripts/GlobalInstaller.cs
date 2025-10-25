@@ -1,45 +1,103 @@
 ﻿
 using System;
 using Zenject;
+using UnityEngine;
 using System.Linq;
 using Game.Services;
 using System.Reflection;
 
-namespace Game.Boot
+public class GlobalInstaller : MonoInstaller
 {
-    public class GlobalInstaller : MonoInstaller
+    // Optional: root for Resources lookups, can be overridden per-attribute via PrefabPath
+    [SerializeField] private string _defaultResourcesRoot = "Prefabs";
+
+    public override void InstallBindings()
     {
-        public override void InstallBindings()
+        // Choose assemblies you want to scan.
+        // In most Unity setups, using the assembly of GlobalInstaller is sufficient,
+        // or use AppDomain.CurrentDomain.GetAssemblies() and filter by name.
+        var assembliesToScan = new[]
         {
-            // Берём все типы из текущей сборки (можно расширить на другие)
-            var assembly = Assembly.GetExecutingAssembly();
+            Assembly.GetExecutingAssembly()
+        };
 
-            var serviceTypes = assembly.GetTypes()
-                .Where(t => t.IsAbstract == false && t.IsInterface == false)
-                .Select(t => new
-                {
-                    Impl = t,
-                    ServiceInterface = t.GetInterfaces()
-                        .FirstOrDefault(i => i.IsGenericType &&
-                                             i.GetGenericTypeDefinition() == typeof(IService<>))
-                })
-                .Where(x => x.ServiceInterface != null);
+        foreach (var assembly in assembliesToScan)
+        {
+            BindAttributedServices(assembly);
+        }
+    }
 
-            foreach (var s in serviceTypes)
+    private void BindAttributedServices(Assembly assembly)
+    {
+        var types = assembly.GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .ToArray();
+
+        foreach (var impl in types)
+        {
+            // Find IService<TContract> implemented by impl
+            var serviceInterface = impl.GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType &&
+                                     i.GetGenericTypeDefinition() == typeof(IService<>));
+            if (serviceInterface == null)
+                continue;
+
+            var contract = serviceInterface.GetGenericArguments()[0];
+
+            // Read ServiceAttribute
+            var attr = impl.GetCustomAttribute<ServiceAttribute>();
+            if (attr == null)
+                continue;
+
+            switch (attr.Source)
             {
-                // Достаём реальный контракт (например, ISceneLoader)
-                var iface = s.ServiceInterface.GetGenericArguments()[0];
+                case SourceServiceType.Class:
+                    // Pure class service
+                    Container.Bind(contract)
+                             .To(impl)
+                             .AsSingle()
+                             .NonLazy();
+                    break;
 
-                // Жёсткая проверка: контракт должен быть интерфейсом
-                if (iface.IsInterface == false)
-                {
-                    throw new Exception(
-                        $"Ошибка регистрации: {s.Impl.Name} указывает {iface.Name}, но это не интерфейс!");
-                }
+                case SourceServiceType.Prefab:
+                    {
+                        // MonoBehaviour service loaded and instantiated from Resources
+                        var path = ResolvePrefabPath(attr.PrefabPath);
+                        var prefab = Resources.Load<GameObject>(path);
 
-                // Регистрируем: ISceneLoader -> SceneLoader
-                Container.Bind(iface).To(s.Impl).AsSingle().NonLazy();
+                        if (prefab == null)
+                            throw new Exception($"GlobalInstaller: Prefab not found at Resources path '{path}' for {impl.Name}");
+
+                        // Bind contract using component from new prefab instance
+                        Container.Bind(contract)
+                                 .FromComponentInNewPrefab(prefab)
+                                 .AsSingle()
+                                 .NonLazy();
+                        break;
+                    }
+
+                case SourceServiceType.Scene:
+                    // MonoBehaviour service that already exists in the scene hierarchy
+                    Container.Bind(contract)
+                             .FromComponentInHierarchy()
+                             .AsSingle()
+                             .NonLazy();
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(attr.Source), $"Unsupported ServiceSource '{attr.Source}' in {impl.Name}");
             }
         }
+    }
+
+    private string ResolvePrefabPath(string explicitPath)
+    {
+        // If attribute specified a full Resources path, use it; otherwise, combine with default root
+        if (!string.IsNullOrEmpty(explicitPath))
+            return explicitPath;
+
+        // Fall back to a sensible default folder if none provided
+        // e.g., "Prefabs/UIRoot"
+        return _defaultResourcesRoot;
     }
 }

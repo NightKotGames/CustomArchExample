@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 
 namespace Game.LoaderScene
 {
+    [Service(SourceServiceType.Class)]
+
     public class SceneLoader : ISceneLoader, IService<ISceneLoader>
     {
         public async UniTask LoadSceneAsync(string sceneName)
